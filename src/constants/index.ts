@@ -1,4 +1,11 @@
 /**
+ * Mock模式开关（开发验收时使用）
+ * true: 使用Mock数据，不依赖后端服务
+ * false: 使用真实API，需要后端服务运行
+ */
+export const USE_MOCK = true;
+
+/**
  * API基础地址
  */
 export const API_BASE_URL = '/api';
