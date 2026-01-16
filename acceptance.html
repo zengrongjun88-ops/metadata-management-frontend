@@ -1020,18 +1020,15 @@
       const menuItems = [
         {
           key: '1',
-          icon: React.createElement(antd.DatabaseOutlined),
-          label: '元数据管理',
+          label: '🗄️ 元数据管理',
         },
         {
           key: '2',
-          icon: React.createElement(antd.AuditOutlined),
-          label: '审批管理',
+          label: '✅ 审批管理',
         },
         {
           key: '3',
-          icon: React.createElement(antd.HistoryOutlined),
-          label: '操作历史',
+          label: '📜 操作历史',
         },
       ];
 
@@ -1069,8 +1066,9 @@
                 <span
                   className="trigger"
                   onClick={() => setCollapsed(!collapsed)}
+                  style={{ fontSize: '20px', cursor: 'pointer' }}
                 >
-                  {React.createElement(collapsed ? antd.MenuUnfoldOutlined : antd.MenuFoldOutlined)}
+                  {collapsed ? '☰' : '✕'}
                 </span>
                 <Title level={4} style={{ margin: '0 0 0 16px' }}>
                   数据仓库元数据管理系统 - 功能验收
