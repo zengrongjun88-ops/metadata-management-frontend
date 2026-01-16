@@ -55,6 +55,7 @@ export interface MetadataTable {
 export interface TableSearchRequest {
   pageNum: number;
   pageSize: number;
+  keyword?: string;
   tableName?: string;
   databaseName?: string;
   dataSource?: string;
@@ -84,6 +85,7 @@ export interface TableCreateRequest {
   updateFrequency: string;
   owner: string;
   customTags?: string;
+  createSql?: string;
   fields: MetadataField[];
 }
 

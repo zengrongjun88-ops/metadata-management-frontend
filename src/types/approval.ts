@@ -47,6 +47,11 @@ export interface OperationHistory {
   operationType: string;
   operator: string;
   operationTime: string;
+  beforeContent?: string;
+  afterContent?: string;
   changeContent?: string;
+  operationDesc?: string;
   approvalId?: number;
+  createBy?: string;
+  createTime?: string;
 }

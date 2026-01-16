@@ -31,6 +31,17 @@ function wrapResult<T>(data: T): Result<T> {
   };
 }
 
+// 包装成PageResult格式的响应
+function wrapPageResult<T>(records: T[], total: number, pageNum: number, pageSize: number): Result<PageResult<T>> {
+  return wrapResult({
+    records,
+    total,
+    pageNum,
+    pageSize,
+    pages: Math.ceil(total / pageSize),
+  });
+}
+
 // ==================== 元数据表Mock API ====================
 
 export const mockMetadataApi = {
@@ -81,17 +92,10 @@ export const mockMetadataApi = {
     // 为每个表添加字段信息
     const tablesWithFields = records.map(table => ({
       ...table,
-      fields: mockFields[table.id] || [],
+      fields: mockFields[table.id!] || [],
     }));
 
-    return {
-      data: {
-        records: tablesWithFields,
-        total,
-        pageNum,
-        pageSize,
-      },
-    };
+    return wrapPageResult(tablesWithFields, total, pageNum, pageSize);
   },
 
   // 根据ID查询详情
@@ -103,12 +107,10 @@ export const mockMetadataApi = {
       return Promise.reject({ message: '表不存在' });
     }
 
-    return {
-      data: {
-        ...table,
-        fields: mockFields[id] || [],
-      },
-    };
+    return wrapResult({
+      ...table,
+      fields: mockFields[id] || [],
+    });
   },
 
   // 根据数据库名和表名查询
@@ -123,12 +125,10 @@ export const mockMetadataApi = {
       return Promise.reject({ message: '表不存在' });
     }
 
-    return {
-      data: {
-        ...table,
-        fields: mockFields[table.id] || [],
-      },
-    };
+    return wrapResult({
+      ...table,
+      fields: mockFields[table.id!] || [],
+    });
   },
 
   // 创建表
@@ -161,7 +161,6 @@ export const mockMetadataApi = {
       createTime: now,
       updateBy: 'admin',
       updateTime: now,
-      deleted: 0,
     };
 
     mockTables.push(newTable);
@@ -178,24 +177,26 @@ export const mockMetadataApi = {
         isPrimaryKey: field.isPrimaryKey || 0,
         isNullable: field.isNullable !== undefined ? field.isNullable : 1,
         isEncrypted: field.isEncrypted || 0,
+        isPartitionKey: field.isPartitionKey || 0,
         sensitivityLevel: field.sensitivityLevel || 'L1',
-        defaultValue: field.defaultValue || null,
+        defaultValue: field.defaultValue || undefined,
         createBy: 'admin',
         createTime: now,
         updateBy: 'admin',
         updateTime: now,
-        deleted: 0,
       }));
     }
 
     // 记录操作历史
-    const history = {
+    const history: OperationHistory = {
       id: generateHistoryId(),
       tableId: newId,
-      operationType: 'CREATE' as any,
+      tableName: data.tableName,
+      databaseName: data.databaseName,
+      operationType: 'CREATE',
       operator: 'admin',
       operationTime: now,
-      beforeContent: null,
+      beforeContent: undefined,
       afterContent: JSON.stringify({
         tableName: data.tableName,
         databaseName: data.databaseName,
@@ -204,13 +205,10 @@ export const mockMetadataApi = {
       operationDesc: `创建表 ${data.databaseName}.${data.tableName}`,
       createBy: 'system',
       createTime: now,
-      deleted: 0,
     };
     mockHistory.unshift(history);
 
-    return {
-      data: newId,
-    };
+    return wrapResult(newId);
   },
 
   // 更新表
@@ -233,10 +231,12 @@ export const mockMetadataApi = {
     };
 
     // 记录操作历史
-    const history = {
+    const history: OperationHistory = {
       id: generateHistoryId(),
       tableId: id,
-      operationType: 'UPDATE' as any,
+      tableName: mockTables[index].tableName,
+      databaseName: mockTables[index].databaseName,
+      operationType: 'UPDATE',
       operator: 'admin',
       operationTime: now,
       beforeContent: JSON.stringify(oldTable),
@@ -244,11 +244,10 @@ export const mockMetadataApi = {
       operationDesc: `更新表 ${mockTables[index].databaseName}.${mockTables[index].tableName}`,
       createBy: 'system',
       createTime: now,
-      deleted: 0,
     };
     mockHistory.unshift(history);
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 删除表
@@ -263,26 +262,27 @@ export const mockMetadataApi = {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
     const table = mockTables[index];
 
-    mockTables[index].deleted = 1;
-    mockTables[index].updateTime = now;
+    // 实际删除表
+    mockTables.splice(index, 1);
 
     // 记录操作历史
-    const history = {
+    const history: OperationHistory = {
       id: generateHistoryId(),
       tableId: id,
-      operationType: 'DELETE' as any,
+      tableName: table.tableName,
+      databaseName: table.databaseName,
+      operationType: 'DELETE',
       operator: 'admin',
       operationTime: now,
       beforeContent: JSON.stringify(table),
-      afterContent: null,
+      afterContent: undefined,
       operationDesc: `删除表 ${table.databaseName}.${table.tableName}`,
       createBy: 'system',
       createTime: now,
-      deleted: 0,
     };
     mockHistory.unshift(history);
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 生成建表SQL
@@ -315,11 +315,11 @@ export const mockMetadataApi = {
 
     sql += ';';
 
-    return { data: sql };
+    return wrapResult(sql);
   },
 
   // 校验SQL
-  validateSql: async (sql: string, dataSource: string): Promise<Result<void>> => {
+  validateSql: async (sql: string, _dataSource: string): Promise<Result<void>> => {
     await delay(600);
 
     // 简单的SQL校验
@@ -339,7 +339,7 @@ export const mockMetadataApi = {
       }
     }
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 };
 
@@ -361,20 +361,19 @@ export const mockApprovalApi = {
       status: 'DRAFT',
       submitter: data.submitter || 'admin',
       submitTime: now,
-      approver: null,
-      approveTime: null,
-      approveComment: null,
+      approver: undefined,
+      approveTime: undefined,
+      approveComment: undefined,
       changeContent: data.changeContent || '',
       createBy: 'admin',
       createTime: now,
       updateBy: 'admin',
       updateTime: now,
-      deleted: 0,
     };
 
     mockApprovals.unshift(newApproval);
 
-    return { data: newId };
+    return wrapResult(newId);
   },
 
   // 提交审批
@@ -389,7 +388,7 @@ export const mockApprovalApi = {
     approval.status = 'PENDING';
     approval.submitTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 审批通过
@@ -408,7 +407,7 @@ export const mockApprovalApi = {
     approval.approveComment = data.comment || '';
     approval.updateTime = now;
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 审批拒绝
@@ -427,7 +426,7 @@ export const mockApprovalApi = {
     approval.approveComment = data.comment || '';
     approval.updateTime = now;
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 取消审批
@@ -442,7 +441,7 @@ export const mockApprovalApi = {
     approval.status = 'CANCELLED';
     approval.updateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 发布变更
@@ -461,7 +460,7 @@ export const mockApprovalApi = {
     approval.status = 'PUBLISHED';
     approval.updateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-    return { data: undefined };
+    return wrapResult(undefined);
   },
 
   // 获取审批详情
@@ -473,7 +472,7 @@ export const mockApprovalApi = {
       return Promise.reject({ message: '审批单不存在' });
     }
 
-    return { data: approval };
+    return wrapResult(approval);
   },
 
   // 获取我提交的审批单
@@ -490,19 +489,12 @@ export const mockApprovalApi = {
     const end = start + pageSize;
     const records = filtered.slice(start, end);
 
-    return {
-      data: {
-        records,
-        total,
-        pageNum,
-        pageSize,
-      },
-    };
+    return wrapPageResult(records, total, pageNum, pageSize);
   },
 
   // 获取待我审批的审批单
   getPendingApprovals: async (
-    approver: string,
+    _approver: string,
     pageNum: number,
     pageSize: number
   ): Promise<Result<PageResult<ApprovalFlow>>> => {
@@ -514,14 +506,7 @@ export const mockApprovalApi = {
     const end = start + pageSize;
     const records = filtered.slice(start, end);
 
-    return {
-      data: {
-        records,
-        total,
-        pageNum,
-        pageSize,
-      },
-    };
+    return wrapPageResult(records, total, pageNum, pageSize);
   },
 
   // 获取所有审批单
@@ -536,14 +521,7 @@ export const mockApprovalApi = {
     const end = start + pageSize;
     const records = mockApprovals.slice(start, end);
 
-    return {
-      data: {
-        records,
-        total,
-        pageNum,
-        pageSize,
-      },
-    };
+    return wrapPageResult(records, total, pageNum, pageSize);
   },
 };
 
@@ -587,13 +565,6 @@ export const mockHistoryApi = {
     const end = start + pageSize;
     const records = filtered.slice(start, end);
 
-    return {
-      data: {
-        records,
-        total,
-        pageNum,
-        pageSize,
-      },
-    };
+    return wrapPageResult(records, total, pageNum, pageSize);
   },
 };
