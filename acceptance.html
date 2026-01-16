@@ -74,10 +74,21 @@
       padding: 24px;
       min-height: 360px;
     }
+
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-size: 24px;
+      color: #1890ff;
+    }
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <div class="loading">加载中...</div>
+  </div>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
@@ -1078,8 +1089,16 @@
 
     // ==================== 渲染应用 ====================
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    // 使用React 18兼容的渲染方式
+    const container = document.getElementById('root');
+    if (window.ReactDOM.createRoot) {
+      // React 18
+      const root = ReactDOM.createRoot(container);
+      root.render(<App />);
+    } else {
+      // React 17 fallback
+      ReactDOM.render(<App />, container);
+    }
   </script>
 </body>
 </html>
