@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>元数据管理系统 - 功能验收</title>
+
+  <!-- Ant Design CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/antd@5.12.0/dist/reset.css">
+
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+
+  <!-- Ant Design -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/antd@5.12.0/dist/antd.min.js"></script>
+
+  <!-- Babel Standalone for JSX -->
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.23.5/babel.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f0f2f5;
+    }
+
+    #root {
+      height: 100vh;
+    }
+
+    .logo {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .logo-icon {
+      font-size: 24px;
+      margin-right: 8px;
+    }
+
+    .ant-layout-sider {
+      background: #001529;
+    }
+
+    .ant-menu-dark {
+      background: #001529;
+    }
+
+    .trigger {
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 24px;
+      transition: color 0.3s;
+    }
+
+    .trigger:hover {
+      color: #1890ff;
+    }
+
+    .site-layout-background {
+      background: #fff;
+      padding: 24px;
+      min-height: 360px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const {
+      Layout, Menu, Button, Table, Input, Space, Tag, Modal, Form,
+      Select, InputNumber, message, Card, Descriptions, Row, Col,
+      Divider, Typography, Tooltip, Popconfirm
+    } = antd;
+
+    const { Header, Sider, Content } = Layout;
+    const { Search } = Input;
+    const { Title, Text } = Typography;
+    const { TextArea } = Input;
+
+    // ==================== Mock数据 ====================
+
+    const mockTables = [
+      {
+        id: 1,
+        tableName: 'user_info',
+        databaseName: 'edw_user_db',
+        dataSource: 'Hive',
+        tableComment: '用户基础信息表，存储用户的基本属性信息，包括注册信息、个人资料等',
+        hiveAccount: 'hotel',
+        tableSize: 10737418240,
+        warehouseLayer: 'EDW',
+        themeFirst: 'usr',
+        themeSecond: 'con',
+        sensitivityLevel: 'L2',
+        importanceLevel: 'P0',
+        partitionType: '增量分区',
+        partitionRetentionDays: 730,
+        updateFrequency: '每日',
+        owner: 'zhangsan',
+        customTags: '核心表,用户,实时',
+        createTime: '2024-01-10 10:30:00',
+        fields: [
+          { fieldName: 'user_id', fieldType: 'BIGINT', fieldComment: '用户ID', isPrimaryKey: 1, isEncrypted: 0, sensitivityLevel: 'L1' },
+          { fieldName: 'user_name', fieldType: 'STRING', fieldComment: '用户姓名', isPrimaryKey: 0, isEncrypted: 1, sensitivityLevel: 'L3' },
+          { fieldName: 'mobile', fieldType: 'STRING', fieldComment: '手机号码', isPrimaryKey: 0, isEncrypted: 1, sensitivityLevel: 'L4' },
+          { fieldName: 'email', fieldType: 'STRING', fieldComment: '邮箱', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L2' },
+          { fieldName: 'register_time', fieldType: 'TIMESTAMP', fieldComment: '注册时间', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L1' },
+          { fieldName: 'user_status', fieldType: 'TINYINT', fieldComment: '用户状态', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L1' },
+        ]
+      },
+      {
+        id: 2,
+        tableName: 'order_detail',
+        databaseName: 'dwd_order_db',
+        dataSource: 'Hive',
+        tableComment: '订单明细表，记录所有订单的详细信息，包括订单商品、金额、状态等',
+        hiveAccount: 'hotel',
+        tableSize: 53687091200,
+        warehouseLayer: 'DWD',
+        themeFirst: 'ord',
+        themeSecond: 'dtl',
+        sensitivityLevel: 'L3',
+        importanceLevel: 'P0',
+        partitionType: '全量分区',
+        partitionRetentionDays: 365,
+        updateFrequency: '每小时',
+        owner: 'lisi',
+        customTags: '核心表,订单,高频',
+        createTime: '2024-02-05 09:00:00',
+        fields: [
+          { fieldName: 'order_id', fieldType: 'BIGINT', fieldComment: '订单ID', isPrimaryKey: 1, isEncrypted: 0, sensitivityLevel: 'L1' },
+          { fieldName: 'user_id', fieldType: 'BIGINT', fieldComment: '用户ID', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L2' },
+          { fieldName: 'product_id', fieldType: 'BIGINT', fieldComment: '商品ID', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L1' },
+          { fieldName: 'order_amount', fieldType: 'DECIMAL(10,2)', fieldComment: '订单金额', isPrimaryKey: 0, isEncrypted: 0, sensitivityLevel: 'L3' },
+        ]
+      },
+      {
+        id: 3,
+        tableName: 'hotel_booking',
+        databaseName: 'cdm_hotel_db',
+        dataSource: 'BigQuery',
+        tableComment: '酒店预订汇总表，统计酒店预订的关键指标，支持BI报表查询',
+        hiveAccount: 'hotel',
+        tableSize: 2147483648,
+        warehouseLayer: 'CDM',
+        themeFirst: 'prd',
+        themeSecond: 'htl',
+        sensitivityLevel: 'L1',
+        importanceLevel: 'P1',
+        partitionType: '增量分区',
+        partitionRetentionDays: 180,
+        updateFrequency: '每日',
+        owner: 'wangwu',
+        customTags: '酒店,汇总表',
+        createTime: '2024-03-01 11:20:00',
+        fields: []
+      },
+      {
+        id: 4,
+        tableName: 'user_behavior_log',
+        databaseName: 'ods_log_db',
+        dataSource: 'ClickHouse',
+        tableComment: '用户行为日志表，记录用户在APP和网站上的所有操作行为',
+        hiveAccount: 'bieng',
+        tableSize: 107374182400,
+        warehouseLayer: 'ODS',
+        themeFirst: 'ubt',
+        themeSecond: 'log',
+        sensitivityLevel: 'L2',
+        importanceLevel: 'P1',
+        partitionType: '增量分区',
+        partitionRetentionDays: 90,
+        updateFrequency: '实时',
+        owner: 'zhaoliu',
+        customTags: '日志,用户行为,大数据',
+        createTime: '2024-01-20 08:30:00',
+        fields: []
+      },
+      {
+        id: 5,
+        tableName: 'payment_transaction',
+        databaseName: 'dwd_finance_db',
+        dataSource: 'Hive',
+        tableComment: '支付交易明细表，存储所有支付交易的详细记录，包括支付渠道、金额、状态等',
+        hiveAccount: 'hotel',
+        tableSize: 21474836480,
+        warehouseLayer: 'DWD',
+        themeFirst: 'fin',
+        themeSecond: 'pay',
+        sensitivityLevel: 'L4',
+        importanceLevel: 'P0',
+        partitionType: '增量分区',
+        partitionRetentionDays: 1095,
+        updateFrequency: '每小时',
+        owner: 'sunqi',
+        customTags: '核心表,支付,金融',
+        createTime: '2024-02-15 14:00:00',
+        fields: []
+      },
+      {
+        id: 6,
+        tableName: 'product_inventory',
+        databaseName: 'mid_product_db',
+        dataSource: 'Paimon',
+        tableComment: '商品库存中间表，实时更新商品库存状态',
+        hiveAccount: 'hotel_tech',
+        tableSize: 1073741824,
+        warehouseLayer: 'MID',
+        themeFirst: 'prd',
+        themeSecond: 'inv',
+        sensitivityLevel: 'L1',
+        importanceLevel: 'P1',
+        partitionType: '无分区',
+        partitionRetentionDays: 0,
+        updateFrequency: '每15分钟',
+        owner: 'zhouba',
+        customTags: '库存,实时',
+        createTime: '2024-03-05 10:00:00',
+        fields: []
+      },
+      {
+        id: 7,
+        tableName: 'customer_profile',
+        databaseName: 'cdm_user_db',
+        dataSource: 'Hive',
+        tableComment: '客户画像表，整合用户的多维度特征，支持精准营销',
+        hiveAccount: 'hotel',
+        tableSize: 5368709120,
+        warehouseLayer: 'CDM',
+        themeFirst: 'usr',
+        themeSecond: 'prf',
+        sensitivityLevel: 'L3',
+        importanceLevel: 'P1',
+        partitionType: '增量分区',
+        partitionRetentionDays: 365,
+        updateFrequency: '每日',
+        owner: 'wujiu',
+        customTags: '画像,用户,营销',
+        createTime: '2024-02-20 13:30:00',
+        fields: []
+      },
+      {
+        id: 8,
+        tableName: 'marketing_campaign',
+        databaseName: 'dwd_marketing_db',
+        dataSource: 'Iceberg',
+        tableComment: '营销活动详情表，记录所有营销活动的配置和执行情况',
+        hiveAccount: 'bieng',
+        tableSize: 536870912,
+        warehouseLayer: 'DWD',
+        themeFirst: 'mkt',
+        themeSecond: 'cmp',
+        sensitivityLevel: 'L1',
+        importanceLevel: 'P2',
+        partitionType: '增量分区',
+        partitionRetentionDays: 180,
+        updateFrequency: '每日',
+        owner: 'zhengshi',
+        customTags: '营销,活动',
+        createTime: '2024-03-08 09:45:00',
+        fields: []
+      },
+      {
+        id: 9,
+        tableName: 'flight_booking',
+        databaseName: 'dwd_flight_db',
+        dataSource: 'StarRocks',
+        tableComment: '机票预订明细表，存储机票预订的完整信息',
+        hiveAccount: 'flight',
+        tableSize: 10737418240,
+        warehouseLayer: 'DWD',
+        themeFirst: 'flt',
+        themeSecond: 'bkg',
+        sensitivityLevel: 'L2',
+        importanceLevel: 'P1',
+        partitionType: '增量分区',
+        partitionRetentionDays: 365,
+        updateFrequency: '每小时',
+        owner: 'wushi',
+        customTags: '机票,预订',
+        createTime: '2024-02-28 11:00:00',
+        fields: []
+      },
+      {
+        id: 10,
+        tableName: 'dim_region',
+        databaseName: 'dim_common_db',
+        dataSource: 'Hive',
+        tableComment: '地区维度表，存储国家、省份、城市等地理信息',
+        hiveAccount: 'hotel',
+        tableSize: 104857600,
+        warehouseLayer: 'DIM',
+        themeFirst: 'dim',
+        themeSecond: 'geo',
+        sensitivityLevel: 'L1',
+        importanceLevel: 'P2',
+        partitionType: '无分区',
+        partitionRetentionDays: 0,
+        updateFrequency: '每周',
+        owner: 'zhengshi',
+        customTags: '维度表,地区',
+        createTime: '2024-01-05 10:00:00',
+        fields: []
+      }
+    ];
+
+    const mockApprovals = [
+      {
+        id: 1,
+        flowNo: 'APPR-2024-001',
+        tableId: 1,
+        tableName: 'user_info',
+        approvalType: 'UPDATE',
+        status: 'PENDING',
+        submitter: 'zhangsan',
+        submitTime: '2024-03-22 10:30:00',
+        approver: null,
+        approveTime: null,
+        approveComment: null,
+      },
+      {
+        id: 2,
+        flowNo: 'APPR-2024-002',
+        tableId: 2,
+        tableName: 'order_detail',
+        approvalType: 'UPDATE',
+        status: 'APPROVED',
+        submitter: 'lisi',
+        submitTime: '2024-03-20 14:20:00',
+        approver: 'admin',
+        approveTime: '2024-03-21 09:15:00',
+        approveComment: '同意修改',
+      },
+      {
+        id: 3,
+        flowNo: 'APPR-2024-003',
+        tableId: 5,
+        tableName: 'payment_transaction',
+        approvalType: 'UPDATE',
+        status: 'PUBLISHED',
+        submitter: 'sunqi',
+        submitTime: '2024-03-18 11:00:00',
+        approver: 'admin',
+        approveTime: '2024-03-19 10:00:00',
+        approveComment: '通过并发布',
+      },
+      {
+        id: 4,
+        flowNo: 'APPR-2024-004',
+        tableId: 3,
+        tableName: 'hotel_booking',
+        approvalType: 'UPDATE',
+        status: 'REJECTED',
+        submitter: 'wangwu',
+        submitTime: '2024-03-21 16:00:00',
+        approver: 'admin',
+        approveTime: '2024-03-22 09:00:00',
+        approveComment: '需要补充业务说明',
+      },
+      {
+        id: 5,
+        flowNo: 'APPR-2024-005',
+        tableId: 7,
+        tableName: 'customer_profile',
+        approvalType: 'CREATE',
+        status: 'APPROVED',
+        submitter: 'wujiu',
+        submitTime: '2024-02-20 13:30:00',
+        approver: 'admin',
+        approveTime: '2024-02-21 10:00:00',
+        approveComment: '同意创建',
+      },
+      {
+        id: 6,
+        flowNo: 'APPR-2024-006',
+        tableId: 4,
+        tableName: 'user_behavior_log',
+        approvalType: 'UPDATE',
+        status: 'CANCELLED',
+        submitter: 'zhaoliu',
+        submitTime: '2024-03-19 15:00:00',
+        approver: null,
+        approveTime: null,
+        approveComment: null,
+      },
+    ];
+
+    const mockHistory = [
+      {
+        id: 1,
+        tableId: 1,
+        tableName: 'user_info',
+        databaseName: 'edw_user_db',
+        operationType: 'CREATE',
+        operator: 'zhangsan',
+        operationTime: '2024-01-10 10:30:00',
+        operationDesc: '创建用户基础信息表',
+      },
+      {
+        id: 2,
+        tableId: 1,
+        tableName: 'user_info',
+        databaseName: 'edw_user_db',
+        operationType: 'UPDATE',
+        operator: 'zhangsan',
+        operationTime: '2024-01-15 15:20:00',
+        operationDesc: '优化表描述信息',
+      },
+      {
+        id: 3,
+        tableId: 2,
+        tableName: 'order_detail',
+        databaseName: 'dwd_order_db',
+        operationType: 'CREATE',
+        operator: 'lisi',
+        operationTime: '2024-02-05 09:00:00',
+        operationDesc: '创建订单明细表',
+      },
+      {
+        id: 4,
+        tableId: 2,
+        tableName: 'order_detail',
+        databaseName: 'dwd_order_db',
+        operationType: 'UPDATE',
+        operator: 'lisi',
+        operationTime: '2024-03-10 14:30:00',
+        operationDesc: '调整分区保留天数',
+      },
+      {
+        id: 5,
+        tableId: 5,
+        tableName: 'payment_transaction',
+        databaseName: 'dwd_finance_db',
+        operationType: 'UPDATE',
+        operator: 'sunqi',
+        operationTime: '2024-03-19 15:00:00',
+        operationDesc: '提升敏感等级，新增支付渠道字段',
+      },
+      {
+        id: 6,
+        tableId: 7,
+        tableName: 'customer_profile',
+        databaseName: 'cdm_user_db',
+        operationType: 'CREATE',
+        operator: 'wujiu',
+        operationTime: '2024-02-20 13:30:00',
+        operationDesc: '创建客户画像表',
+      },
+      {
+        id: 7,
+        tableId: 3,
+        tableName: 'hotel_booking',
+        databaseName: 'cdm_hotel_db',
+        operationType: 'UPDATE',
+        operator: 'wangwu',
+        operationTime: '2024-03-15 16:45:00',
+        operationDesc: '调整更新频率',
+      },
+      {
+        id: 8,
+        tableId: 4,
+        tableName: 'user_behavior_log',
+        databaseName: 'ods_log_db',
+        operationType: 'CREATE',
+        operator: 'zhaoliu',
+        operationTime: '2024-01-20 08:30:00',
+        operationDesc: '创建用户行为日志表',
+      },
+      {
+        id: 9,
+        tableId: 8,
+        tableName: 'marketing_campaign',
+        databaseName: 'dwd_marketing_db',
+        operationType: 'CREATE',
+        operator: 'zhengshi',
+        operationTime: '2024-03-08 09:45:00',
+        operationDesc: '创建营销活动详情表',
+      },
+      {
+        id: 10,
+        tableId: 9,
+        tableName: 'flight_booking',
+        databaseName: 'dwd_flight_db',
+        operationType: 'CREATE',
+        operator: 'wushi',
+        operationTime: '2024-02-28 11:00:00',
+        operationDesc: '创建机票预订明细表',
+      },
+    ];
+
+    // ==================== 工具函数 ====================
+
+    const formatBytes = (bytes) => {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    };
+
+    const getStatusColor = (status) => {
+      const colorMap = {
+        'PENDING': 'warning',
+        'APPROVED': 'success',
+        'REJECTED': 'error',
+        'CANCELLED': 'default',
+        'PUBLISHED': 'processing',
+      };
+      return colorMap[status] || 'default';
+    };
+
+    const getStatusText = (status) => {
+      const textMap = {
+        'PENDING': '待审批',
+        'APPROVED': '已通过',
+        'REJECTED': '已拒绝',
+        'CANCELLED': '已取消',
+        'PUBLISHED': '已发布',
+      };
+      return textMap[status] || status;
+    };
+
+    const getOperationTypeColor = (type) => {
+      const colorMap = {
+        'CREATE': 'success',
+        'UPDATE': 'processing',
+        'DELETE': 'error',
+      };
+      return colorMap[type] || 'default';
+    };
+
+    // ==================== 元数据表管理组件 ====================
+
+    const TableList = () => {
+      const [tables, setTables] = useState(mockTables);
+      const [filteredTables, setFilteredTables] = useState(mockTables);
+      const [searchText, setSearchText] = useState('');
+      const [selectedTable, setSelectedTable] = useState(null);
+      const [detailVisible, setDetailVisible] = useState(false);
+
+      const handleSearch = (value) => {
+        setSearchText(value);
+        if (!value) {
+          setFilteredTables(tables);
+          return;
+        }
+        const filtered = tables.filter(table =>
+          table.tableName.toLowerCase().includes(value.toLowerCase()) ||
+          table.databaseName.toLowerCase().includes(value.toLowerCase()) ||
+          (table.tableComment && table.tableComment.toLowerCase().includes(value.toLowerCase()))
+        );
+        setFilteredTables(filtered);
+      };
+
+      const handleViewDetail = (record) => {
+        setSelectedTable(record);
+        setDetailVisible(true);
+      };
+
+      const columns = [
+        {
+          title: '表名',
+          dataIndex: 'tableName',
+          key: 'tableName',
+          render: (text, record) => (
+            <a onClick={() => handleViewDetail(record)}>{text}</a>
+          ),
+        },
+        {
+          title: '库名',
+          dataIndex: 'databaseName',
+          key: 'databaseName',
+        },
+        {
+          title: '数据源',
+          dataIndex: 'dataSource',
+          key: 'dataSource',
+          render: (text) => <Tag color="blue">{text}</Tag>,
+        },
+        {
+          title: '表描述',
+          dataIndex: 'tableComment',
+          key: 'tableComment',
+          ellipsis: true,
+          width: 300,
+        },
+        {
+          title: '分层',
+          dataIndex: 'warehouseLayer',
+          key: 'warehouseLayer',
+          render: (text) => <Tag>{text}</Tag>,
+        },
+        {
+          title: '敏感等级',
+          dataIndex: 'sensitivityLevel',
+          key: 'sensitivityLevel',
+          render: (text) => {
+            const colors = { L1: 'green', L2: 'blue', L3: 'orange', L4: 'red' };
+            return <Tag color={colors[text]}>{text}</Tag>;
+          },
+        },
+        {
+          title: '负责人',
+          dataIndex: 'owner',
+          key: 'owner',
+        },
+        {
+          title: '创建时间',
+          dataIndex: 'createTime',
+          key: 'createTime',
+          width: 180,
+        },
+      ];
+
+      return (
+        <>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <Space>
+              <Search
+                placeholder="搜索表名、库名、描述"
+                allowClear
+                onSearch={handleSearch}
+                style={{ width: 400 }}
+              />
+              <Text type="secondary">共 {filteredTables.length} 个表</Text>
+            </Space>
+
+            <Table
+              columns={columns}
+              dataSource={filteredTables}
+              rowKey="id"
+              pagination={{ pageSize: 10 }}
+            />
+          </Space>
+
+          <Modal
+            title="表详情"
+            open={detailVisible}
+            onCancel={() => setDetailVisible(false)}
+            footer={null}
+            width={1000}
+          >
+            {selectedTable && (
+              <Space direction="vertical" style={{ width: '100%' }} size="large">
+                <Card title="基础信息" size="small">
+                  <Descriptions column={2} bordered size="small">
+                    <Descriptions.Item label="表名">{selectedTable.tableName}</Descriptions.Item>
+                    <Descriptions.Item label="库名">{selectedTable.databaseName}</Descriptions.Item>
+                    <Descriptions.Item label="数据源">
+                      <Tag color="blue">{selectedTable.dataSource}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Hive账号">{selectedTable.hiveAccount}</Descriptions.Item>
+                    <Descriptions.Item label="数仓分层">
+                      <Tag>{selectedTable.warehouseLayer}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="一级主题">{selectedTable.themeFirst}</Descriptions.Item>
+                    <Descriptions.Item label="敏感等级">
+                      <Tag color={selectedTable.sensitivityLevel === 'L4' ? 'red' : 'blue'}>
+                        {selectedTable.sensitivityLevel}
+                      </Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="重要等级">
+                      <Tag color={selectedTable.importanceLevel === 'P0' ? 'red' : 'orange'}>
+                        {selectedTable.importanceLevel}
+                      </Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="表大小">{formatBytes(selectedTable.tableSize)}</Descriptions.Item>
+                    <Descriptions.Item label="分区类型">{selectedTable.partitionType}</Descriptions.Item>
+                    <Descriptions.Item label="更新频率">{selectedTable.updateFrequency}</Descriptions.Item>
+                    <Descriptions.Item label="负责人">{selectedTable.owner}</Descriptions.Item>
+                    <Descriptions.Item label="表描述" span={2}>
+                      {selectedTable.tableComment}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="自定义标签" span={2}>
+                      {selectedTable.customTags}
+                    </Descriptions.Item>
+                  </Descriptions>
+                </Card>
+
+                {selectedTable.fields && selectedTable.fields.length > 0 && (
+                  <Card title={`字段信息 (${selectedTable.fields.length}个)`} size="small">
+                    <Table
+                      columns={[
+                        { title: '字段名', dataIndex: 'fieldName', key: 'fieldName' },
+                        { title: '类型', dataIndex: 'fieldType', key: 'fieldType' },
+                        { title: '描述', dataIndex: 'fieldComment', key: 'fieldComment' },
+                        {
+                          title: '主键',
+                          dataIndex: 'isPrimaryKey',
+                          key: 'isPrimaryKey',
+                          render: (val) => val ? <Tag color="red">是</Tag> : <Tag>否</Tag>
+                        },
+                        {
+                          title: '加密',
+                          dataIndex: 'isEncrypted',
+                          key: 'isEncrypted',
+                          render: (val) => val ? <Tag color="orange">是</Tag> : <Tag>否</Tag>
+                        },
+                        {
+                          title: '敏感等级',
+                          dataIndex: 'sensitivityLevel',
+                          key: 'sensitivityLevel',
+                          render: (text) => {
+                            const colors = { L1: 'green', L2: 'blue', L3: 'orange', L4: 'red' };
+                            return <Tag color={colors[text]}>{text}</Tag>;
+                          }
+                        },
+                      ]}
+                      dataSource={selectedTable.fields}
+                      rowKey="fieldName"
+                      pagination={false}
+                      size="small"
+                    />
+                  </Card>
+                )}
+              </Space>
+            )}
+          </Modal>
+        </>
+      );
+    };
+
+    // ==================== 审批管理组件 ====================
+
+    const ApprovalList = () => {
+      const [approvals, setApprovals] = useState(mockApprovals);
+      const [filteredApprovals, setFilteredApprovals] = useState(mockApprovals);
+      const [approvalModalVisible, setApprovalModalVisible] = useState(false);
+      const [selectedApproval, setSelectedApproval] = useState(null);
+      const [form] = Form.useForm();
+
+      const handleStatusFilter = (value) => {
+        if (!value) {
+          setFilteredApprovals(approvals);
+          return;
+        }
+        const filtered = approvals.filter(item => item.status === value);
+        setFilteredApprovals(filtered);
+      };
+
+      const handleApprove = (record, isApprove) => {
+        setSelectedApproval(record);
+        form.setFieldsValue({
+          approver: 'admin',
+          comment: '',
+        });
+        setApprovalModalVisible(true);
+      };
+
+      const handleApprovalSubmit = (values) => {
+        const updatedApprovals = approvals.map(item => {
+          if (item.id === selectedApproval.id) {
+            return {
+              ...item,
+              status: 'APPROVED',
+              approver: values.approver,
+              approveTime: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
+              approveComment: values.comment,
+            };
+          }
+          return item;
+        });
+        setApprovals(updatedApprovals);
+        setFilteredApprovals(updatedApprovals);
+        setApprovalModalVisible(false);
+        message.success('审批成功');
+      };
+
+      const handlePublish = (record) => {
+        const updatedApprovals = approvals.map(item => {
+          if (item.id === record.id) {
+            return { ...item, status: 'PUBLISHED' };
+          }
+          return item;
+        });
+        setApprovals(updatedApprovals);
+        setFilteredApprovals(updatedApprovals);
+        message.success('发布成功');
+      };
+
+      const columns = [
+        {
+          title: '审批单号',
+          dataIndex: 'flowNo',
+          key: 'flowNo',
+        },
+        {
+          title: '表名',
+          dataIndex: 'tableName',
+          key: 'tableName',
+        },
+        {
+          title: '类型',
+          dataIndex: 'approvalType',
+          key: 'approvalType',
+          render: (text) => <Tag>{text}</Tag>,
+        },
+        {
+          title: '状态',
+          dataIndex: 'status',
+          key: 'status',
+          render: (text) => <Tag color={getStatusColor(text)}>{getStatusText(text)}</Tag>,
+        },
+        {
+          title: '提交人',
+          dataIndex: 'submitter',
+          key: 'submitter',
+        },
+        {
+          title: '提交时间',
+          dataIndex: 'submitTime',
+          key: 'submitTime',
+          width: 180,
+        },
+        {
+          title: '审批人',
+          dataIndex: 'approver',
+          key: 'approver',
+          render: (text) => text || '-',
+        },
+        {
+          title: '审批时间',
+          dataIndex: 'approveTime',
+          key: 'approveTime',
+          width: 180,
+          render: (text) => text || '-',
+        },
+        {
+          title: '操作',
+          key: 'action',
+          render: (_, record) => (
+            <Space>
+              {record.status === 'PENDING' && (
+                <Button type="primary" size="small" onClick={() => handleApprove(record, true)}>
+                  审批
+                </Button>
+              )}
+              {record.status === 'APPROVED' && (
+                <Button type="primary" size="small" onClick={() => handlePublish(record)}>
+                  发布
+                </Button>
+              )}
+            </Space>
+          ),
+        },
+      ];
+
+      return (
+        <>
+          <Space direction="vertical" style={{ width: '100%' }} size="large">
+            <Space>
+              <Select
+                placeholder="筛选状态"
+                allowClear
+                style={{ width: 200 }}
+                onChange={handleStatusFilter}
+              >
+                <Select.Option value="PENDING">待审批</Select.Option>
+                <Select.Option value="APPROVED">已通过</Select.Option>
+                <Select.Option value="REJECTED">已拒绝</Select.Option>
+                <Select.Option value="CANCELLED">已取消</Select.Option>
+                <Select.Option value="PUBLISHED">已发布</Select.Option>
+              </Select>
+              <Text type="secondary">共 {filteredApprovals.length} 个审批单</Text>
+            </Space>
+
+            <Table
+              columns={columns}
+              dataSource={filteredApprovals}
+              rowKey="id"
+              pagination={{ pageSize: 10 }}
+            />
+          </Space>
+
+          <Modal
+            title="审批"
+            open={approvalModalVisible}
+            onCancel={() => setApprovalModalVisible(false)}
+            footer={null}
+          >
+            <Form form={form} onFinish={handleApprovalSubmit} layout="vertical">
+              <Form.Item
+                label="审批人"
+                name="approver"
+                rules={[{ required: true, message: '请输入审批人' }]}
+              >
+                <Input />
+              </Form.Item>
+              <Form.Item
+                label="审批意见"
+                name="comment"
+              >
+                <TextArea rows={4} placeholder="请输入审批意见" />
+              </Form.Item>
+              <Form.Item>
+                <Space>
+                  <Button type="primary" htmlType="submit">
+                    通过
+                  </Button>
+                  <Button onClick={() => setApprovalModalVisible(false)}>
+                    取消
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Modal>
+        </>
+      );
+    };
+
+    // ==================== 操作历史组件 ====================
+
+    const OperationHistory = () => {
+      const [history, setHistory] = useState(mockHistory);
+      const [filteredHistory, setFilteredHistory] = useState(mockHistory);
+
+      const handleTypeFilter = (value) => {
+        if (!value) {
+          setFilteredHistory(history);
+          return;
+        }
+        const filtered = history.filter(item => item.operationType === value);
+        setFilteredHistory(filtered);
+      };
+
+      const columns = [
+        {
+          title: '操作类型',
+          dataIndex: 'operationType',
+          key: 'operationType',
+          render: (text) => <Tag color={getOperationTypeColor(text)}>{text}</Tag>,
+        },
+        {
+          title: '表名',
+          dataIndex: 'tableName',
+          key: 'tableName',
+        },
+        {
+          title: '库名',
+          dataIndex: 'databaseName',
+          key: 'databaseName',
+        },
+        {
+          title: '操作人',
+          dataIndex: 'operator',
+          key: 'operator',
+        },
+        {
+          title: '操作时间',
+          dataIndex: 'operationTime',
+          key: 'operationTime',
+          width: 180,
+        },
+        {
+          title: '操作描述',
+          dataIndex: 'operationDesc',
+          key: 'operationDesc',
+          ellipsis: true,
+        },
+      ];
+
+      return (
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Space>
+            <Select
+              placeholder="筛选操作类型"
+              allowClear
+              style={{ width: 200 }}
+              onChange={handleTypeFilter}
+            >
+              <Select.Option value="CREATE">CREATE</Select.Option>
+              <Select.Option value="UPDATE">UPDATE</Select.Option>
+              <Select.Option value="DELETE">DELETE</Select.Option>
+            </Select>
+            <Text type="secondary">共 {filteredHistory.length} 条记录</Text>
+          </Space>
+
+          <Table
+            columns={columns}
+            dataSource={filteredHistory}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+          />
+        </Space>
+      );
+    };
+
+    // ==================== 主应用组件 ====================
+
+    const App = () => {
+      const [collapsed, setCollapsed] = useState(false);
+      const [currentMenu, setCurrentMenu] = useState('1');
+
+      const menuItems = [
+        {
+          key: '1',
+          icon: React.createElement(antd.DatabaseOutlined),
+          label: '元数据管理',
+        },
+        {
+          key: '2',
+          icon: React.createElement(antd.AuditOutlined),
+          label: '审批管理',
+        },
+        {
+          key: '3',
+          icon: React.createElement(antd.HistoryOutlined),
+          label: '操作历史',
+        },
+      ];
+
+      const renderContent = () => {
+        switch (currentMenu) {
+          case '1':
+            return <TableList />;
+          case '2':
+            return <ApprovalList />;
+          case '3':
+            return <OperationHistory />;
+          default:
+            return <TableList />;
+        }
+      };
+
+      return (
+        <Layout style={{ minHeight: '100vh' }}>
+          <Sider trigger={null} collapsible collapsed={collapsed}>
+            <div className="logo">
+              <span className="logo-icon">🗄️</span>
+              {!collapsed && <span>元数据管理</span>}
+            </div>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[currentMenu]}
+              items={menuItems}
+              onClick={({ key }) => setCurrentMenu(key)}
+            />
+          </Sider>
+          <Layout>
+            <Header style={{ padding: 0, background: '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                <span
+                  className="trigger"
+                  onClick={() => setCollapsed(!collapsed)}
+                >
+                  {React.createElement(collapsed ? antd.MenuUnfoldOutlined : antd.MenuFoldOutlined)}
+                </span>
+                <Title level={4} style={{ margin: '0 0 0 16px' }}>
+                  数据仓库元数据管理系统 - 功能验收
+                </Title>
+              </div>
+            </Header>
+            <Content style={{ margin: '24px 16px 0' }}>
+              <div className="site-layout-background">
+                {renderContent()}
+              </div>
+            </Content>
+          </Layout>
+        </Layout>
+      );
+    };
+
+    // ==================== 渲染应用 ====================
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
